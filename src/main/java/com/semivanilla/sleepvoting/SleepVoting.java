@@ -68,7 +68,12 @@ public final class SleepVoting extends JavaPlugin implements Listener {
     }
 
     public void skipNight(World world) {
-        Component actionBar = Component.translatable("sleep.skipping_night");
+        Component actionBar;
+        if (getConfig().getBoolean("action-bar.skipping-night.use-vanilla-bar")) {
+            actionBar = Component.translatable("sleep.skipping_night");
+        } else {
+            actionBar = MiniMessage.miniMessage().deserialize(getConfig().getString("action-bar.skipping-night.bar", "<white>Skipping night..."));
+        }
         for (Player player : world.getPlayers()) {
             player.sendActionBar(actionBar);
         }

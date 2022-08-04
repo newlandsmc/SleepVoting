@@ -10,3 +10,6 @@ smooth:
 action-bar:
   enabled: true
   bar: '<white>%player% has slept. %votes%/%required% votes to skip night.'
+  skipping-night:
+    use-vanilla-bar: true
+    bar: '<white>Skipping the night...' # This will be displayed if use-vanilla-bar is false.
