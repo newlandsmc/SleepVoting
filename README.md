@@ -13,3 +13,4 @@ will be skipped.
 - Hooks into vanish, so vanished players aren't counted.
 - Skipping the night uses the `sleep.skipping_night` minecraft translation.
 - Resets a player's insomnia counter (phantoms won't attack if they sleep).
+- Smooth night skip
