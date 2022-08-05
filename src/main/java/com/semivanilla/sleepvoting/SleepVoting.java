@@ -15,12 +15,15 @@ import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.swing.*;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public final class SleepVoting extends JavaPlugin implements Listener {
     private long nightStart, nightEnd;
-    private int votes = 0;
+    private Set<UUID> votes = new HashSet<>();
     private boolean isCurrentlyNight = false, skippingNight = false;
     private String worldName;
 
@@ -53,15 +56,15 @@ public final class SleepVoting extends JavaPlugin implements Listener {
         if (world == null) return;
         boolean night = isNight(world);
         if (isCurrentlyNight && !night) {
-            votes = 0;
+            votes.clear();
             isCurrentlyNight = false;
         } else if (!isCurrentlyNight && night) {
-            votes = 0;
+            votes.clear();
             isCurrentlyNight = true;
         }
 
         if (night) {
-            if (votes >= getRequiredVotes(world)) {
+            if (votes.size() >= getRequiredVotes(world)) {
                 skipNight(world);
             }
         }
@@ -77,7 +80,7 @@ public final class SleepVoting extends JavaPlugin implements Listener {
         for (Player player : world.getPlayers()) {
             player.sendActionBar(actionBar);
         }
-        votes = 0;
+        votes.clear();
         if (getConfig().getBoolean("smooth.enabled")) {
             long addTicks = getConfig().getLong("smooth.add-ticks", 10);
             long runTicks = getConfig().getLong("smooth.run-ticks", 2);
@@ -135,9 +138,10 @@ public final class SleepVoting extends JavaPlugin implements Listener {
     public void onSleep(PlayerBedEnterEvent event) {
         if (event.getBedEnterResult() != PlayerBedEnterEvent.BedEnterResult.OK) return;
 
-        votes++;
-        sendActionBar(event.getBed().getWorld(), event.getPlayer().getName());
-        event.getPlayer().setStatistic(Statistic.TIME_SINCE_REST, 0);
+        if (!votes.add(event.getPlayer().getUniqueId())) {
+            sendActionBar(event.getBed().getWorld(), event.getPlayer().getName());
+            event.getPlayer().setStatistic(Statistic.TIME_SINCE_REST, 0);
+        }
     }
 
     public boolean isNight(World world) {
