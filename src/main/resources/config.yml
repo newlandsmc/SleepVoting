@@ -1,8 +1,7 @@
-night-start: 13000
-night-end: 23000
 world: 'world' # the name of the overworld world.
 votes-required: 0.5 # max players * votes-required = required votes, so 0.5 = 50% of max players
 reset-weather: true
+ticks-before-sending-new-actionbar: 5 # This is to override the X/Y sleeping actionbar.
 smooth:
   enabled: true
   add-ticks: 50 # How many ticks to add to the time.
