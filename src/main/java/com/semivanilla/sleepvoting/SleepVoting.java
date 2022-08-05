@@ -156,11 +156,11 @@ public final class SleepVoting extends JavaPlugin implements Listener {
     }
 
     public long getNightStart(World world) {
-        return world.isClearWeather() ? 12542 : 12010;
+        return world.isClearWeather() ? (12542 - 10) : (12010 - 10); // Allow a small 10 tick buffer so the vote counts
     }
 
     public long getNightEnd(World world) {
-        return world.isClearWeather() ? 23459 : 23991;
+        return world.isClearWeather() ? (23459 - 10) : (23991 - 10);
     }
 
     private boolean isVanished(Player player) {
