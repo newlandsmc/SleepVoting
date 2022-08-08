@@ -99,7 +99,12 @@ public final class SleepVoting extends JavaPlugin implements Listener {
 
     public int getRequiredVotes(World world) {
         //Use percentage from config
-        return (int) (getCountedPlayers(world).size() * getConfig().getDouble("votes-required", 0.5));
+        int required = (int) (getCountedPlayers(world).size() * getConfig().getDouble("votes-required", 0.5));
+        //getLogger().info("Required votes: " + required);
+        if (required <= 0) {
+            required = 1;
+        }
+        return required;
     }
 
     public List<Player> getCountedPlayers(World world) {
