@@ -1,9 +1,15 @@
 package com.semivanilla.sleepvoting;
 
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.ProtocolManager;
+import com.comphenix.protocol.events.*;
+import com.comphenix.protocol.wrappers.WrappedChatComponent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
+import org.bukkit.GameRule;
 import org.bukkit.Statistic;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -11,25 +17,28 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerBedEnterEvent;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public final class SleepVoting extends JavaPlugin implements Listener {
+    private static final String VANILLA_ACTIONBAR = "sleep.players_sleeping", VANILLA_ACTIONBAR_SLEEP_NOT_POSSIBLE = "sleep.not_possible", SKIPPING_NIGHT_ACTIONBAR = "sleep.skipping_night";
     private static SleepVoting instance;
     private Set<UUID> votes = new HashSet<>();
     private boolean isCurrentlyNight = false, skippingNight = false;
     private String worldName;
     private Component actionBar = null;
+    private ProtocolManager protocolManager;
 
     public static SleepVoting getInstance() {
         return instance;
+    }
+
+    @Override
+    public void onLoad() {
+        protocolManager = ProtocolLibrary.getProtocolManager();
     }
 
     @Override
@@ -39,13 +48,94 @@ public final class SleepVoting extends JavaPlugin implements Listener {
             getDataFolder().mkdir();
         }
         saveDefaultConfig();
-        worldName = getConfig().getString("world", "world");
+        World world = Bukkit.getWorld(getConfig().getString("world", "world"));
+        if (world == null) throw new IllegalStateException("World not found");
+        world.setGameRule(GameRule.PLAYERS_SLEEPING_PERCENTAGE, 101);
+        worldName = world.getName(); // We want the exact name of the world
         if (getConfig().getBoolean("action-bar.enabled"))
             actionBar = MiniMessage.miniMessage().deserialize(getConfig().getString("action-bar.bar", "<white>%player% has slept. %votes%/%required% votes to skip night."));
 
         getServer().getScheduler().runTaskTimer(this, this::update, 20, 20);
 
         getServer().getPluginManager().registerEvents(this, this);
+
+        boolean protocolLib = Bukkit.getPluginManager().isPluginEnabled("ProtocolLib");
+        if (getConfig().getBoolean("suppress-vanilla-actionbar", protocolLib)) {
+            if (!protocolLib) {
+                getLogger().severe("ProtocolLib is not installed. Disabling vanilla action bar suppression.");
+                return;
+            }
+            getLogger().info("Registering ProtocolLib packet listener to suppress vanilla action bar.");
+            protocolManager.addPacketListener(new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Server.SET_ACTION_BAR_TEXT) {
+                @Override
+                public void onPacketSending(PacketEvent e) {
+                    getLogger().info("Packet sent: " + e.getPacketType());
+                    /*
+                    Packet sent: SET_ACTION_BAR_TEXT[class=ClientboundSetActionBarTextPacket, id=67] | PacketContainer[type=SET_ACTION_BAR_TEXT[class=ClientboundSetActionBarTextPacket, id=67], structureModifier=StructureModifier[fieldType=class java.lang.Object, data=[com.comphenix.protocol.reflect.accessors.DefaultFieldAccessor@5faafad0, com.comphenix.protocol.reflect.accessors.DefaultFieldAccessor@20070d61, com.comphenix.protocol.reflect.accessors.DefaultFieldAccessor@6b03ad39]]] | null
+                    Packet sent: SET_ACTION_BAR_TEXT[class=ClientboundSetActionBarTextPacket, id=67] | PacketContainer[type=SET_ACTION_BAR_TEXT[class=ClientboundSetActionBarTextPacket, id=67], structureModifier=StructureModifier[fieldType=class java.lang.Object, data=[com.comphenix.protocol.reflect.accessors.DefaultFieldAccessor@5faafad0, com.comphenix.protocol.reflect.accessors.DefaultFieldAccessor@20070d61, com.comphenix.protocol.reflect.accessors.DefaultFieldAccessor@6b03ad39]]] | null
+                     */
+                    if (e.getPacketType() == PacketType.Play.Server.SET_ACTION_BAR_TEXT) {
+                        PacketContainer packet = e.getPacket();
+                        for (WrappedChatComponent value : packet.getChatComponents().getValues()) {
+                            getLogger().info(" - Packet value: " + value);
+                        }
+                        for (WrappedChatComponent[] value : packet.getChatComponentArrays().getValues()) {
+                            getLogger().info(" - Packet value []: " + (value == null ? "null" : Arrays.toString(value)));
+                        }
+                        for (InternalStructure value : packet.getStructures().getValues()) {
+                            getLogger().info(" - Structures: " + value);
+                            if (value == null) continue;
+                            if (value.getHandle() instanceof Component) {
+                                Component component = (Component) value.getHandle();
+                                Bukkit.broadcast(Component.text("[Dev] - ").append(component));
+                            }
+                            for (WrappedChatComponent wrappedChatComponent : value.getChatComponents().getValues()) {
+                                getLogger().info("   - ChatComponent: " + wrappedChatComponent);
+                            }
+                            for (WrappedChatComponent[] wrappedChatComponents : value.getChatComponentArrays().getValues()) {
+                                getLogger().info("   - ChatComponent []: " + (wrappedChatComponents == null ? "null" : Arrays.toString(wrappedChatComponents)));
+                            }
+                        }
+                        for (Optional<InternalStructure> value : packet.getOptionalStructures().getValues()) {
+                            getLogger().info(" - Optional structures: " + value);
+                            if (value == null) continue;
+                            for (WrappedChatComponent wrappedChatComponent : value.get().getChatComponents().getValues()) {
+                                getLogger().info("   - ChatComponent: " + wrappedChatComponent);
+                            }
+                            for (WrappedChatComponent[] wrappedChatComponents : value.get().getChatComponentArrays().getValues()) {
+                                getLogger().info("   - ChatComponent []: " + (wrappedChatComponents == null ? "null" : Arrays.toString(wrappedChatComponents)));
+                            }
+                        }
+                    }
+                    /*
+                    EnumWrappers.ChatType chatType = e.getPacket().getChatTypes().read(0);
+                    if(chatType == EnumWrappers.ChatType.GAME_INFO) {
+                        PacketContainer packet = e.getPacket();
+                        getLogger().info("a");
+                        if (!e.getPlayer().getWorld().getName().equals(worldName)) {
+                            return; // Not the world we're interested in
+                        }
+                        getLogger().info("b");
+                        List<WrappedChatComponent> components = packet.getChatComponents().getValues();
+                        for (WrappedChatComponent component : components) {
+                            if (component == null) continue;
+                            if (component.getJson().contains("\"translate\":\"" + VANILLA_ACTIONBAR + "\"") || component.getJson().contains("\"translate\":\"" + VANILLA_ACTIONBAR_SLEEP_NOT_POSSIBLE + "\"") ||
+                            component.getJson().contains("\"translate\":\"" + SKIPPING_NIGHT_ACTIONBAR + "\"")) { // We're cancelling these actionbars since there is no actual api to modify them.
+                                getLogger().info("Cancelling vanilla action bar: " + component.getJson());
+                                e.setCancelled(true);
+                                return;
+                            } else getLogger().info("Not cancelling vanilla action bar: " + component.getJson());
+                        }
+                    }
+                     */
+                }
+
+                @Override
+                public void onPacketReceiving(PacketEvent event) {
+                }
+            });
+            getLogger().info("ProtocolLib packet listener registered.");
+        }
     }
 
     public void update() {
@@ -69,12 +159,7 @@ public final class SleepVoting extends JavaPlugin implements Listener {
     }
 
     public void skipNight(World world) {
-        Component actionBar;
-        if (getConfig().getBoolean("action-bar.skipping-night.use-vanilla-bar")) {
-            actionBar = Component.translatable("sleep.skipping_night");
-        } else {
-            actionBar = MiniMessage.miniMessage().deserialize(getConfig().getString("action-bar.skipping-night.bar", "<white>Skipping night..."));
-        }
+        Component actionBar = MiniMessage.miniMessage().deserialize(getConfig().getString("action-bar.skipping", "<white>Skipping night..."));
         for (Player player : world.getPlayers()) {
             player.sendActionBar(actionBar);
         }
