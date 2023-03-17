@@ -2,3 +2,5 @@ name: SleepVoting
 version: '${project.version}'
 main: com.semivanilla.sleepvoting.SleepVoting
 api-version: 1.19
+softdepend:
+  - Essentials

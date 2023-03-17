@@ -1,5 +1,8 @@
 package com.semivanilla.sleepvoting;
 
+import com.earth2me.essentials.Essentials;
+import com.earth2me.essentials.User;
+import com.earth2me.essentials.config.holders.UserConfigHolder;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -176,10 +179,21 @@ public final class SleepVoting extends JavaPlugin implements Listener {
     }
 
     private boolean shouldCount(Player player) {
-        return !isVanished(player) && !player.isSleepingIgnored();
+        return !isVanished(player) && !player.isSleepingIgnored() && !isAFK(player);
     }
 
     public void setSkippingNight(boolean skippingNight) {
         this.skippingNight = skippingNight;
+    }
+
+    public boolean isAFK(Player player) {
+        if (Bukkit.getPluginManager().isPluginEnabled("Essentials")) {
+            Essentials essentials = (Essentials) Bukkit.getPluginManager().getPlugin("Essentials");
+            if (essentials == null) return false;
+            User user = essentials.getUser(player);
+            if (user == null) return false;
+            return user.isAfk();
+        }
+        return false;
     }
 }
